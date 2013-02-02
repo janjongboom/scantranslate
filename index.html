@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Test</title>
+    <link href="main.css" rel="stylesheet" type="text/css">
+    <script src="video.js"></script>
+  </head>
+
+  <body>
+  	<input type="file" id="inpf"/>
+    <video id="v" width="640" height="480"></video>
+    <canvas id="c" width="320" height="240" style="display: none"></canvas>
+    <iframe id="i" width="640" height="480" style="display: none"></iframe>
+
+    <script>
+    function GoogleStuffLoaded() {
+    	console.log('hi')
+    	gapi.client.load('drive', '2', function () {
+			var clientId = '306004719249.apps.googleusercontent.com';
+			var apiKey = 'AIzaSyBVHcLKC3ja-ZCsyWQLe0eBB3q28F7V6X0';
+			var scopes = 'https://www.googleapis.com/auth/drive';
+
+			gapi.client.setApiKey(apiKey);
+
+			gapi.auth.authorize({client_id: clientId, scope: scopes, immediate: false}, function () {
+				console.log('authresult', arguments)
+			});
+    	});
+    }
+
+    function afterUpload(data) {
+    	document.getElementById('v').style.display = 'none'
+    	document.getElementById('c').style.display = 'none'
+    	document.getElementById('i').style.display = 'block'
+
+    	var downloadUrl = data.exportLinks['text/plain'];
+	    var accessToken = gapi.auth.getToken().access_token;
+	    var xhr = new XMLHttpRequest();
+	    xhr.open('GET', downloadUrl);
+	    xhr.setRequestHeader('Authorization', 'Bearer ' + accessToken);
+	    xhr.onload = function() {
+	    	alert(xhr.responseText);
+	    };
+	    xhr.onerror = function() {
+	    	console.error('req failed', arguments)
+	    };
+	    xhr.send();
+    }
+
+function insertFileData(fileName, canvasEle, callback) {
+    const boundary = '-------314159265358979323846';
+    const delimiter = "\r\n--" + boundary + "\r\n";
+    const close_delim = "\r\n--" + boundary + "--";
+
+    var contentType = 'image/png';
+    var metadata = {
+        'title': fileName,
+        'mimeType': contentType
+    };
+
+    var base64Data = canvasEle.getContext("2d").canvas.toDataURL("image/png")
+    base64Data = base64Data.replace("data:image/png;base64,", "");
+
+    var multipartRequestBody = delimiter + 'Content-Type: application/json\r\n\r\n' + JSON.stringify(metadata) + delimiter + 'Content-Type: ' + contentType + '\r\n' + 'Content-Transfer-Encoding: base64\r\n' + '\r\n' + base64Data + close_delim;
+
+    var request = gapi.client.request({
+        'path': '/upload/drive/v2/files',
+        'method': 'POST',
+        'params': {
+            'uploadType': 'multipart',
+            'ocr': true
+        },
+        'headers': {
+            'Content-Type': 'multipart/mixed; boundary="' + boundary + '"'
+        },
+        'body': multipartRequestBody
+    });
+    if (!callback) {
+        callback = function(file) {
+            console.log(file)
+        };
+    }
+    request.execute(callback);
+}
+function insertFileData2(fileData, callback) {
+  const boundary = '-------314159265358979323846';
+  const delimiter = "\r\n--" + boundary + "\r\n";
+  const close_delim = "\r\n--" + boundary + "--";
+
+  var reader = new FileReader();
+  reader.readAsBinaryString(fileData);
+  reader.onload = function(e) {
+    var contentType = fileData.type || 'application/octect-stream';
+    var metadata = {
+      'title': fileData.fileName,
+      'mimeType': contentType
+    };
+
+    var base64Data = btoa(reader.result);
+    var multipartRequestBody =
+        delimiter +
+        'Content-Type: application/json\r\n\r\n' +
+        JSON.stringify(metadata) +
+        delimiter +
+        'Content-Type: ' + contentType + '\r\n' +
+        'Content-Transfer-Encoding: base64\r\n' +
+        '\r\n' +
+        base64Data +
+        close_delim;
+
+    var request = gapi.client.request({
+        'path': '/upload/drive/v2/files',
+        'method': 'POST',
+        'params': {'uploadType': 'multipart', 'ocr': true},
+        'headers': {
+          'Content-Type': 'multipart/mixed; boundary="' + boundary + '"'
+        },
+        'body': multipartRequestBody});
+    if (!callback) {
+      callback = function(file) {
+        console.log(file)
+      };
+    }
+    request.execute(callback);
+  }
+}
+    </script>
+    <script src="https://apis.google.com/js/client.js?onload=GoogleStuffLoaded"></script>
+  </body>
+</html>
